@@ -27,6 +27,7 @@ jobs:
           pyinstaller \
             --onefile \
             --name vscode-installer \
+            --add-data "packages:packages" \
             install.py
 
       - name: Upload artifact
