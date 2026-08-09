@@ -41,10 +41,11 @@ def extract_strip_components(tar_path, target_dir, strip_components=1):
 def install(commit, cli_tar, server_tar):
     '''
     兼容：
-    Remote-SSH 新版 CLI 流程
-    Remote-SSH 旧版 server.tar.gz 流程
-    Attach Container
+    - Remote-SSH 新版 CLI 流程 (VS Code 1.82+)
+    - Remote-SSH 旧版 server 布局
+    - Attach Container
     '''
+
     base = Path.home() / ".vscode-server"
 
     print(f"[install] commit     = {commit}")
@@ -61,43 +62,85 @@ def install(commit, cli_tar, server_tar):
     if not server_tar.exists():
         raise FileNotFoundError(f"Server 文件不存在: {server_tar}")
 
-    # 1. 安装 CLI
+    if server_tar.stat().st_size == 0:
+        raise RuntimeError(f"Server 文件为空: {server_tar}")
+
+    # 创建基础目录
     base.mkdir(parents=True, exist_ok=True)
+
     print(f"[install] 创建目录: {base}")
 
-    cli_target = base / f"vscode-cli-{commit}.tar.gz"
-    shutil.copy(cli_tar, cli_target)
 
-    print(f"[install] CLI 文件已复制: {cli_target}")
+    # ==================================================
+    # 1. 安装 CLI
+    #
+    # 注意：
+    # vscode-cli-${commit}.tar.gz.done
+    # 实际内容就是 cli tar.gz
+    # 不是空标记文件
+    # ==================================================
 
     cli_done = base / f"vscode-cli-{commit}.tar.gz.done"
-    cli_done.touch()
 
-    print(f"[install] CLI 标记创建: {cli_done}")
-
-    # 2. 创建旧版 Remote-SSH 兼容文件
-    server_archive = base / "vscode-server.tar.gz"
-
-    shutil.copy(server_tar, server_archive)
-
-    print(f"[install] Server 兼容文件已复制: {server_archive}")
-
-    # 3. 安装新版 Server 布局
-    server_dir = (
-        base /
-        "cli" /
-        "servers" /
-        f"Stable-{commit}" /
-        "server"
+    shutil.copy(
+        cli_tar,
+        cli_done,
     )
 
+    print(f"[install] CLI 文件已复制: {cli_done}")
+
+
+    # ==================================================
+    # 2. 兼容 Remote-SSH 等待文件
+    #
+    # VS Code 会检查：
+    # ~/.vscode-server/vscode-server.tar.gz
+    # ==================================================
+
+    server_archive = base / "vscode-server.tar.gz"
+
+    shutil.copy(
+        server_tar,
+        server_archive,
+    )
+
+    print(f"[install] Server archive 已复制: {server_archive}")
+
+
+    # ==================================================
+    # 3. VS Code 1.82+ 新布局
+    #
+    # ~/.vscode-server/
+    #   cli/
+    #     servers/
+    #       Stable-${commit}/
+    #          server/
+    # ==================================================
+
+    server_dir = (
+        base
+        / "cli"
+        / "servers"
+        / f"Stable-{commit}"
+        / "server"
+    )
+
+
+    # 防止旧版本残留导致：
+    # Text file busy
+    #
     if server_dir.exists():
         print(f"[install] 删除旧 Server: {server_dir}")
         shutil.rmtree(server_dir)
 
-    server_dir.mkdir(parents=True, exist_ok=True)
+
+    server_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     print(f"[install] 创建 Server 目录: {server_dir}")
+
 
     extract_strip_components(
         server_tar,
@@ -105,21 +148,37 @@ def install(commit, cli_tar, server_tar):
         strip_components=1,
     )
 
-    # 4. 创建兼容旧版 bin 路径
+
+    # ==================================================
+    # 4. 兼容旧版:
+    #
+    # ~/.vscode-server/bin/${commit}
+    #
+    # ==================================================
+
     bin_dir = base / "bin"
-    bin_dir.mkdir(exist_ok=True)
+
+    bin_dir.mkdir(
+        exist_ok=True
+    )
 
     link = bin_dir / commit
+
 
     if link.exists() or link.is_symlink():
         link.unlink()
 
-    link.symlink_to(server_dir)
 
-    print(f"[install] 已创建软链接: {link} -> {server_dir}")
+    link.symlink_to(
+        server_dir
+    )
 
-    print("[install] 安装完成！")
+    print(
+        f"[install] 已创建软链接: {link} -> {server_dir}"
+    )
 
+
+    print("[install] 安装完成!")
 
 if __name__ == "__main__":
     commit = "fdb98833154679dbaa7af67a5a29fe19e55c2b73"
