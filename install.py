@@ -21,8 +21,12 @@ def extract_strip_components(tar_path, target_dir, strip_components=1):
                 continue
 
             member.name = str(Path(*parts[strip_components:]))
-            tar.extract(member, target_dir)
 
+            tar.extract(
+                member,
+                target_dir,
+                filter="data",
+            )
 
 def install(commit, cli_tar, server_tar):
     base = Path.home() / ".vscode-server"
