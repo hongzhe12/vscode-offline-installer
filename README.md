@@ -1,5 +1,5 @@
 # VS Code Offline Installer
-可以解决 Remote-SSH 场景下 VS Code Server 的离线预部署问题，通过提前放置指定 commit 对应的 vscode-cli 和 server 文件，让 VS Code Remote-SSH 跳过在线下载步骤
+可以解决 Remote-SSH 场景下 VS Code Server 的离线预部署问题，通过提前放置指定 commit 对应的server文件，让 VS Code Remote-SSH 跳过在线下载步骤
 
 ## Client
 
